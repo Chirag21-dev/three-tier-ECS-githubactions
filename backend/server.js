@@ -10,28 +10,30 @@ app.use(cors());
 
 let db;
 
-// 🔁 MySQL Connection with Retry Logic
-const connectWithRetry = async (retries = 10, delay = 3000) => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const pool = await mysql.createPool({
-        host: process.env.host,
-        user: process.env.user,
-        password: process.env.password,
-        database: process.env.database,
-        connectionLimit: 10,
-        ssl: { rejectUnauthorized: false }
-      });
-      console.log(`✅ Connected to MySQL (Attempt ${attempt})`);
-      return pool;
-    } catch (error) {
-      console.error(`❌ MySQL connection failed (Attempt ${attempt}/${retries}):`, error.message);
-      if (attempt === retries) throw error;
-      console.log(`Retrying in ${delay / 1000}s...`);
-      await new Promise(res => setTimeout(res, delay));
-    }
+async function getDBConfig() {
+  const command = new GetParametersCommand({
+    Names: [
+      "/myapp/db/host",
+      "/myapp/db/user",
+      "/myapp/db/password",
+      "/myapp/db/name"
+    ],
+    WithDecryption: true
+  });
+
+  const res = await ssm.send(command);
+  const params = {};
+
+  res.Parameters.forEach(p => {
+    params[p.Name.split("/").pop()] = p.Value;
+  });
+
+  if (!params.host || !params.user || !params.password || !params.name) {
+    throw new Error("Missing DB parameters in SSM");
   }
-};
+
+  return params;
+}
 
 // 🧱 Ensure Required Tables Exist
 const ensureTables = async (db) => {
