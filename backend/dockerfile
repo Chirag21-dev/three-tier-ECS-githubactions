@@ -1,6 +1,6 @@
 FROM node:18-alpine AS builder
 
-# Set working directory
+# Set working directory /app
 WORKDIR /app
 
 # Copy package files first for caching
